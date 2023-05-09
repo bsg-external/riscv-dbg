@@ -86,8 +86,8 @@ module dm_csrs #(
   dm::dtm_op_e dtm_op;
   assign dtm_op = dm::dtm_op_e'(dmi_req_i.op);
 
-  logic        resp_queue_full;
-  logic        resp_queue_empty;
+  logic        resp_queue_full, resp_queue_fulln;
+  logic        resp_queue_empty, resp_queue_emptyn;
   logic        resp_queue_push;
   logic        resp_queue_pop;
 
@@ -584,24 +584,41 @@ module dm_csrs #(
   assign ndmreset_o = dmcontrol_q.ndmreset;
 
   // response FIFO
-  fifo_v2 #(
-    .dtype            ( logic [$bits(dmi_resp_o)-1:0] ),
-    .DEPTH            ( 2                             )
-  ) i_fifo (
-    .clk_i,
-    .rst_ni,
-    .flush_i          ( ~dmi_rst_ni          ), // Flush the queue if the DTM is
-                                                // reset
-    .testmode_i       ( testmode_i           ),
-    .full_o           ( resp_queue_full      ),
-    .empty_o          ( resp_queue_empty     ),
-    .alm_full_o       (                      ),
-    .alm_empty_o      (                      ),
-    .data_i           ( resp_queue_inp       ),
-    .push_i           ( resp_queue_push      ),
-    .data_o           ( dmi_resp_o           ),
-    .pop_i            ( resp_queue_pop       )
-  );
+  //fifo_v2 #(
+  //  .dtype            ( logic [$bits(dmi_resp_o)-1:0] ),
+  //  .DEPTH            ( 2                             )
+  //) i_fifo (
+  //  .clk_i,
+  //  .rst_ni,
+  //  .flush_i          ( ~dmi_rst_ni          ), // Flush the queue if the DTM is
+  //                                              // reset
+  //  .testmode_i       ( testmode_i           ),
+  //  .full_o           ( resp_queue_full      ),
+  //  .empty_o          ( resp_queue_empty     ),
+  //  .alm_full_o       (                      ),
+  //  .alm_empty_o      (                      ),
+  //  .data_i           ( resp_queue_inp       ),
+  //  .push_i           ( resp_queue_push      ),
+  //  .data_o           ( dmi_resp_o           ),
+  //  .pop_i            ( resp_queue_pop       )
+  //);
+
+  bsg_two_fifo
+   #(.width_p($bits(dmi_resp_o)))
+   fifo_v2
+    (.clk_i(clk_i)
+     ,.reset_i(~rst_ni)
+
+     ,.data_i(resp_queue_inp)
+     ,.v_i(resp_queue_push)
+     ,.ready_o(resp_queue_fulln)
+
+     ,.data_o(dmi_resp_o)
+     ,.v_o(resp_queue_emptyn)
+     ,.yumi_i(resp_queue_pop)
+     );
+  assign resp_queue_full = ~resp_queue_fulln;
+  assign resp_queue_empty = ~resp_queue_emptyn;
 
   always_ff @(posedge clk_i or negedge rst_ni) begin : p_regs
     // PoR
